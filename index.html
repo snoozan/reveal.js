@@ -4,12 +4,20 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-		<title>reveal.js</title>
+		<title>Linux Containers - Isolating Linux processes for great good</title>
+
+		<meta name="description" content="Isolating Linux processes for great good">
+		<meta name="author" content="Susan Lunn">
+
+		<meta name="apple-mobile-web-app-capable" content="yes" />
+		<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+		<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
 
 		<link rel="stylesheet" href="css/reveal.css">
-		<link rel="stylesheet" href="css/theme/black.css">
+		<link rel="stylesheet" href="css/theme/moon.css" id="theme">
 
-		<!-- Theme used for syntax highlighting of code -->
+		<!-- Code syntax highlighting -->
 		<link rel="stylesheet" href="lib/css/zenburn.css">
 
 		<!-- Printing and PDF exports -->
@@ -24,8 +32,430 @@
 	<body>
 		<div class="reveal">
 			<div class="slides">
-				<section>Slide 1</section>
-				<section>Slide 2</section>
+				<section>
+					<h1>Linux Containers</h1>
+					<h3>Isolating Linux processes for great good</h3>
+					<p>
+						<small>Created by <a href="http://petsnotcattle.com">Susan Lunn</a> / <a href="https://github.com/snoozan">github</a>
+						/ <a href="https://twitter.com/snoozanlan">twitter</a></small> 
+					</p>
+				</section>
+                                <section>
+                                        <section>
+                                        <h2>Linux Containers
+                                        </h2>
+                                        <h3> a brief tl;dr </h3>
+                                        <p> 
+                                        Processes isolated in user space by
+                                        invoking a collection of syscalls called
+                                        namespaces.
+                                        </p>
+                                        </section>
+                                        <section>
+                                                <h3>Internals </h3> 
+                                        </section>
+                                        <section>
+                                                <h4>Namespaces</h4>
+                                                <p> Isolating your resources</p>
+                                        </section>
+                                        <section>
+                                                <h3> Available namespaces </h3>
+                                                <table>
+                                                        <thead>
+                                                                <tr>
+                                                                <th>Namespace</th>
+                                                                <th>Isolates</th>
+                                                                </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                                <tr>
+                                                                        <th>IPC</th>
+                                                                        <th>System V IPC, POSIX message queues</th>
+                                                                </tr>
+                                                                <tr>
+                                                                        <th>Network</th>
+                                                                        <th>Network devices, stacks, ports, etc</th>
+                                                                </tr>
+                                                                <tr>
+                                                                        <th>Mount</th>
+                                                                        <th>Mount points</th>
+                                                                </tr>
+                                                                <tr>
+                                                                        <th>PID</th>
+                                                                        <th>Process
+                                                                        IDs</th>
+                                                                </tr>
+                                                                <tr>
+                                                                        <th>User</th>
+                                                                        <th>User and group IDs</th>
+                                                                </tr>
+                                                                <tr>
+                                                                        <th>UTS</th>
+                                                                        <th>Hostname and NIS domain name</th>
+                                                                </tr>
+                                                        </tbody>
+                                                </table>
+                                                <aside class="notes">
+                                                        <ul><li>
+                                                                        in a pid
+                                                                        namespace
+                                                                        you
+                                                                        become
+                                                                        PID 1
+                                                                        and then
+                                                                        your
+                                                                        children
+                                                                        are
+                                                                        other
+                                                                        processes.
+                                                                        All the
+                                                                        other
+                                                                        programs
+                                                                        are gone
+                                                                </li>
+                                                                <li>
+in a networking namespace you can run programs on any port you want without it
+conflicting with what’s already running</li>
+                                                                <li>in a mount
+                                                                        namespace
+                                                                        you can
+                                                                        mount
+                                                                        and
+                                                                        unmount
+                                                                        filesystems
+                                                                        without
+                                                                        it
+                                                                        affecting
+                                                                        the host
+                                                                        filesystem.
+                                                                        So you
+                                                                        can have
+                                                                        a
+                                                                        totally
+                                                                        different
+                                                                        set of
+                                                                        devices
+                                                                        mounted
+                                                                        (usually less)</li>
+                                                </aside>
+
+                                        </section>
+                                        <section>
+                                                <h4> A new PID namespace running
+                                                        bash </h4>
+                                                <pre><code class="hljs" >
+root@subox:~# unshare --fork --pid --mount-proc bash
+root@subox:~# ps aux
+USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND
+root         1  0.0  0.3  19924  3596 pts/0    S    20:09   0:00 bash
+root        11  0.0  0.3  36088  3324 pts/0    R+   20:09   0:00 ps aux
+                                                </code></pre>
+                                        </section>
+                                        <section>
+                                                <h4> Let's look at the processes
+                                                        from the root operating
+                                                        system</h4>
+                                                <pre><code class="hljs"
+                                                           data-trim
+                                                           contenteditable>
+root      1518  0.0  0.0   6004   800 pts/0    S    20:09   0:00 unshare --fork --pid --mount-proc bash
+root      1519  0.0  0.3  19924  3752 pts/0    S+   20:09   0:00 bash
+
+                                                </code></pre>
+                                                <p> hey! we can see the process
+                                                IDs for those unshared
+                                                processed!</p>
+                                        </section>
+                                        <section>
+                                                <h3>cgroups</h3>
+                                                <p>Limiting resources</p>
+                                                <p> attached to a group of
+                                                processes</p>
+                                        </section>
+                                        <section>
+                                                <h3> Let's talk about unshare()
+                                                </h3>
+                                                <p> Allows a process to
+                                                "unshare" it's context with
+                                                other processes </p>
+                                                <pre><code class="hljs"
+                                                           data-trim
+                                                           contenteditable>
+CLONE_FILES - unshare the file descriptor table 
+
+CLONE_FS - Unshare filesystem attributes, so that the calling process 
+no longer shares its root directory 
+
+CLONE_NEWCGROUP (since Linux 4.6) - Unshare the cgroup namespace
+
+CLONE_NEWIPC (since Linux 2.6.19) - Unshare the IPC namespace
+
+CLONE_NEWNET (since Linux 2.6.24) - Unshare the network namespace
+
+CLONE_NEWNS - Unshare the mount namespace (also uses CLONE_FS)
+
+CLONE_NEWPID (since Linux 3.8) - Unshare the PID namespace, so that the calling process
+has a new PID namespace for its children which is not shared
+with any previously existing process. 
+
+CLONE_NEWUSER (since Linux 3.8) - Unshare the user namespace
+                                                </code></pre>
+                                                <aside class="notes">
+                                                        The flags argument is a bit mask that specifies which parts of the
+       execution context should be unshared.  This argument is specified by
+       ORing together zero or more of the following constants
+                                                </aside>
+
+                                        </section>
+                                        <section>
+                                                <h3>seccomp-bpf</h3>
+                                                <h4>SECure COMputing Berkeley
+                                                        Packet Filter</h4>
+                                                        <p> Limits the syscalls
+                                                        that your processes can
+                                                        call </p>
+                                        </section>
+                                        <section>
+                                                <h3> Neat - so what's the
+                                                        process to create the
+                                                        necessary process
+                                                        isolation
+                                                        ? </h3>
+                                                <ol>
+                                                        <li> Clone all of your
+                                                                namespaces
+                                                                starting with
+                                                                clone(CLONE_NEWUSER)</li>
+                                                        <li> unshare those new
+                                                                cloned
+                                                                namespaces </li>
+                                                </ol>
+                                                <aside class="notes">
+                                                        why clone first? we need
+                                                        to create a new process
+                                                        after all!
+                                                </aside>
+                                        </section>
+
+                                                <section>
+                                                        <h3>How's Docker do it? - or runc
+                                                                rather</h3>
+                                                <ol>
+                                                        <li>
+                                                               Create a new
+                                                                child process and write its uid_map and gid_map.
+                                                                Then that child
+                                                                process creates
+                                                                a new process
+                                                                that sends back
+                                                                it's PID
+                                                        </li>
+                                                        <li> 
+                                                                In the first
+                                                                child process,
+                                                                clone and
+                                                                join all the
+                                                                namespaces of
+                                                                its parent
+                                                                process. Then
+                                                                unshare the
+                                                                requested
+                                                                namespaces
+                                                                (networking,
+                                                                file system,
+                                                                mount point,
+                                                                etc)
+
+                                                        </li>
+                                                        <li>
+                                                                Create a child
+                                                                process (shares
+                                                                all the
+                                                                context with
+                                                                your newly
+                                                                joined parent
+                                                                process)  - Send
+                                                                it's PID back up
+                                                                to the parent
+                                                      </li>
+                                                      <li>
+                                                              Cleanup
+                                                      </li>
+                                                </ol>
+                                                <aside class="notes">
+                                                        <ol>
+                                                                <li>Due to
+                                                                        SELinux
+                                                                and special use
+                                                                cases, you can't
+                                                                unshare first
+                                                                and must clone a
+                                                                set of processes
+                                                                - if you unshare
+                                                                to begin with,
+                                                                the parent
+                                                                process can't do
+                                                                anything to the
+                                                                child process
+                                                                since unshare
+                                                                drops all
+                                                                capabilities of
+                                                                your old
+                                                                namespaces
+                                                                </li>
+                                                                <li>We fork here
+                                                                to share the PID
+                                                                namespace with
+                                                                the parent -
+                                                                this process is
+                                                                only for
+                                                                updating /proc/pid/{setgroups,uid_map,gid_map}.</li>
+                                                                <li>The parent
+                                                                        process
+                                                                needs to manage
+                                                                the child
+                                                                process - the
+                                                                process being
+                                                                forked is
+                                                                usually
+                                                                containerd
+                                                             </li>
+                                                        </ol>
+
+                                                </aside>
+                                        </section>
+                                        <section>
+                                        <h3> Cool we have a process with all the
+                                                correct namespaces - now
+                                                what?</h3>
+                                        </section>
+                                        <section>
+                                                <h3> Introducing pivot_root
+                                                </h3>
+
+						<ul>
+							<li>Let’s you specify an old and new root directory</li>
+							<li>Copy the files from the old root directory into the new root directory</li>
+							<li>Make the new root directory the current root</li>
+						</ul>
+                                                <p> The original root fs is
+                                                untouched but what about
+                                                duplicated mount points? 
+                                                We already took care of this
+                                                with namespacing!
+                                                </p>
+
+                                                <aside class="notes">
+                                                        Duplicated mount points
+                                                        means you can interact
+                                                        with the root filesystem
+                                                        on the root OS - not
+                                                        good
+                                                </aside>
+                                        </section>
+                                        <section>
+                                                <h3> The total process at a high
+                                                level</h3>
+                                                <ol>
+                                                        <li>Use <a href="http://man7.org/linux/man-pages/man2/unshare.2.html">unshare</a> or <a href="http://man7.org/linux/man-pages/man2/clone.2.html">clone</a> system calls to create a new mount namespace and prevent the upcoming pivot_root from affecting the main system</li>
+                                                        <li>Take in an old and new root directory</li>
+                                                        <li>Copy the files from the old root directory into the new root directory</li>
+                                                        <li>Make the new root directory the current root (thanks to the mount namespace, this is isolated to the unshare/clone’d process)</li>
+                                                </ol>
+                                        </section>
+                                        <section>
+                                                <h3> Similar implementations in
+                                                        other kernels </h3>
+
+                                                <ul>
+                                                        <li>Solaris Zones</li>
+                                                        <li>BSD Jails</li>
+                                                </ul>
+                                                <aside class="notes"> 
+
+                                                actively
+                                                        developed in the Illumos
+                                                kernel - biggest example of this
+                                                is Joyent's Triton
+
+                                                Worth noting that these are
+                                                all done in the kernel level -
+                                                Linux containers are weird in
+                                                that they invoke syscalls from
+                                                user space instead (and this
+                                                potentially introduces
+                                                problems)</aside>
+                                        </section>
+
+
+                                </section>
+                                <section>
+                                        <section>
+                                        <h2> Glomming it all together
+                                                </h2>
+                                        <p> Using these user space exposed
+                                        interfaces, container "runtimes" are
+                                        implemented </p>
+                                        </section>
+                                        <section>
+                                                <h3> Containerd/runc </h3>
+                                                <h4>Docker's implementation </h4>
+                                                <p> Exposing an interface for
+                                                the Docker daemon to interact
+                                                with, but designed for
+                                                portability with various
+                                                orchestration tools </p>
+                                                <ul>
+                                                        <li> containerd acts as
+                                                                a daemon for
+                                                                runc (all of the
+                                                        namespace bits)</li>
+                                                        <li> Docker Engine itself
+                                                                interfaces with
+                                                                containerd </li>
+                                                </ul>
+                                                <aside class="notes">
+                                                        containerd has other
+                                                        functionality besides
+                                                        calling runc 
+                                                </aside>
+                                        </section>
+                                        <section
+                                        data-background="https://i0.wp.com/blog.docker.com/wp-content/uploads/974cd631-b57e-470e-a944-78530aaa1a23-1.jpg?w=906&ssl=1"
+                                        data-background-size="1200px"> 
+
+                                        </section>
+
+				</section>
+                                <section>
+                                        <h2> Further resources and further
+                                                reading </h2>
+                                        <a
+                                        href="https://github.com/opencontainers/runc/blob/8b47a242a9aebdfe1c0c2b6513368f736d505bf0/libcontainer/nsenter/nsexec.c#L583">
+                                                The runc code for execing a
+                                                container with a highly
+                                                entertaining comment</a> <br>
+                                        <a
+                                        href="https://jvns.ca/blog/2016/10/10/what-even-is-a-container/">
+                                                What even is a container:
+                                                namespaces and cgroups </a><br>
+                                        <a
+                                        href="http://man7.org/linux/man-pages/man2/unshare.2.html">
+                                                unshare manpage </a><br>
+                                        <a
+                                        href="https://media.defcon.org/DEF%20CON%2023/DEF%20CON%2023%20presentations/DEFCON-23-Aaron-Grattafiori-Linux-Containers-Future-or-Fantasy-UPDATED.pdf"> 
+                                                NCC group's Linux containers
+                                                talk </a><br>
+                                        <a
+                                        href="https://deis.com/blog/2015/isolation-linux-containers/">
+                                                Isolation with Linux Containers
+                                        </a><br>
+                                        <a
+                                        href="https://www.youtube.com/watch?v=sK5i-N34im8">
+                                                Cgroups, namespaces, and beyond:
+                                                what are containers made from? -
+                                                Talk </a><br>
+                                </section>
 			</div>
 		</div>
 
